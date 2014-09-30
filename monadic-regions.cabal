@@ -69,6 +69,7 @@ library
   default-language:   Haskell2010
 
   exposed-modules:    Demo.STMonad
+                    , Demo.CatBagMonad
 
 test-suite properties
   type:               exitcode-stdio-1.0

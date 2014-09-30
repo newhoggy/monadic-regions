@@ -1,11 +1,12 @@
 {-# LANGUAGE Rank2Types #-}
 
-module Demo.STMonad where
+module Demo.CatBagMonad where
 
 import Control.Applicative
 import Control.Monad
 
--- Type trickery to keep the cat in the bag
+-- Type trickery to keep the cat in the bag.
+-- `s` is a phantom type because it does not appear in the type constructor.
 data Bag s a = Bag a -- like ST 
 data Cat s a = Cat a -- like STRef 
 
