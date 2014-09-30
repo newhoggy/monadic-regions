@@ -1,6 +1,4 @@
-{-# OPTIONS -fglasgow-exts #-}
-{-# OPTIONS -fallow-undecidable-instances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE UndecidableInstances, ScopedTypeVariables, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, RankNTypes #-}
 
 
 {-
@@ -37,6 +35,7 @@ Joint work with Chung-chieh Shan.
 module Demo.MultiHandle0 where
 
 import System.IO
+import Control.Applicative
 import Control.Monad (liftM2)
 import Control.Exception (try, catch, throwIO, SomeException, Exception)
 
@@ -84,6 +83,12 @@ instance Monad (TSIO s p p) where
   return = gret
   (>>=)  = gbind
 
+instance Applicative (TSIO s p p) where
+  pure = return
+  af <*> as = gbind af (\f -> gbind as (\s -> return (f s)))
+
+instance Functor (TSIO s p p) where
+  fmap f fs = gbind fs (\s -> return (f s))
 
 -- lift into the TSIO monad
 glift :: IO v -> TSIO s si si v
