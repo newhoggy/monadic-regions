@@ -61,6 +61,7 @@ library
   
   -- Other library packages from which modules are imported.
   build-depends:      base                        >= 4.7
+                    , bytestring                  >= 0.10
                     , mtl                         >= 2.1
   
   -- Directories containing source files.
@@ -69,7 +70,8 @@ library
   -- Base language which the package is written in.
   default-language:   Haskell2010
 
-  exposed-modules:    Demo.SafeHandles1
+  exposed-modules:    Demo.SafeHandles
+                    , Demo.SafeHandles1
                     , Demo.SafeHandlesFM
                     , Demo.CatBagMonad
 
