@@ -2,6 +2,7 @@
 
 module Demo.STMonad where
 
+import Control.Applicative
 import Control.Monad
 
 -- Type trickery to keep the cat in the bag
@@ -11,6 +12,13 @@ data Cat s a = Cat a -- like STRef
 instance Monad (Bag s) where
     (>>=) = bindBag
     return = returnBag
+
+instance Applicative (Bag s) where
+    pure = return
+    (Bag f) <*> (Bag s) = Bag (f s)
+
+instance Functor (Bag s) where
+    fmap f (Bag s) = Bag (f s)
 
 runBag :: forall a. (forall s. Bag s a) -> a
 runBag k = case k of Bag a -> a
@@ -35,6 +43,6 @@ test = runBag $ do
     return value
 
 -- --Doesn't compile - attempts to let the cat out
-fail = runBag $ do
-    cat <- newCat "meow"
-    return cat
+-- fail = runBag $ do
+--     cat <- newCat "meow"
+--     return cat
