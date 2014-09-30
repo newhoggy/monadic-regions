@@ -5,44 +5,43 @@ module Demo.STMonad where
 import Control.Applicative
 import Control.Monad
 
--- Type trickery to keep the cat in the bag
-data Bag s a = Bag a -- like ST 
+-- Type trickery to keep the cat in the ST
+data ST s a = ST a -- like ST 
 data Cat s a = Cat a -- like STRef 
 
-instance Monad (Bag s) where
-    (>>=) = bindBag
-    return = returnBag
+instance Monad (ST s) where
+    (>>=) = bindST
+    return = returnST
 
-instance Applicative (Bag s) where
+instance Applicative (ST s) where
     pure = return
-    (Bag f) <*> (Bag s) = Bag (f s)
+    (ST f) <*> (ST s) = ST (f s)
 
-instance Functor (Bag s) where
-    fmap f (Bag s) = Bag (f s)
+instance Functor (ST s) where
+    fmap f (ST s) = ST (f s)
 
-runBag :: forall a. (forall s. Bag s a) -> a
-runBag k = case k of Bag a -> a
+runST :: forall a. (forall s. ST s a) -> a
+runST k = case k of ST a -> a
 
-newCat :: a -> (forall s. Bag s (Cat s a))
-newCat x = Bag (Cat x)
+newCat :: a -> (forall s. ST s (Cat s a))
+newCat x = ST (Cat x)
 
-readCat :: forall s. forall a. (Cat s a -> Bag s a)
-readCat x = case x of (Cat v) -> Bag v
+readCat :: forall s. forall a. (Cat s a -> ST s a)
+readCat x = case x of (Cat v) -> ST v
 
-bindBag :: Bag s a -> (a -> Bag s b) -> Bag s b
-bindBag s f = case s of Bag x -> f x
+bindST :: ST s a -> (a -> ST s b) -> ST s b
+bindST s f = case s of ST x -> f x
 
-returnBag :: a -> forall s. Bag s a 
-returnBag x = Bag x
+returnST :: a -> forall s. ST s a 
+returnST x = ST x
 
-
--- Works, cat stays in the bag
-test = runBag $ do
+-- Works, cat stays in the ST
+test = runST $ do
     cat <- newCat "meow"
     value <- readCat cat
     return value
 
 -- --Doesn't compile - attempts to let the cat out
--- fail = runBag $ do
+-- fail = runST $ do
 --     cat <- newCat "meow"
 --     return cat
