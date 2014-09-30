@@ -70,7 +70,7 @@ library
 
 test-suite properties
   type:               exitcode-stdio-1.0
-  main-is:            MonaidRegionsProperties.hs
+  main-is:            MonadicRegionsProperties.hs
 
   build-depends:      monadic-regions
                     , base                        >= 4.7
