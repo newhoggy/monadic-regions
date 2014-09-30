@@ -1,4 +1,4 @@
-module MonadicRegions where
+module Demo.MonadicRegions where
 
 encode :: [Int] -> String
 encode nums = show nums
