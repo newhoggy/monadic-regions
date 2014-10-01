@@ -8,7 +8,7 @@
 -- term-level witnesses of region inclusion (subtyping).
 
 module Demo.SafeHandlesFM 
-    (IORT,			-- constructors not exported
+    (IORT,                        -- constructors not exported
      SIO,
      SHandle,
      SubRegion(..),
@@ -16,7 +16,7 @@ module Demo.SafeHandlesFM
      runSIO,
      newRgn,
      newSHandle,
-     IOMode(..),		-- re-exported from System.IO
+     IOMode(..),                -- re-exported from System.IO
 
      shGetLine,
      shPutStrLn,
@@ -26,7 +26,7 @@ module Demo.SafeHandlesFM
      shCatch,
      shReport,
 
-     sNewIORef,			-- IORef in SIO
+     sNewIORef,                        -- IORef in SIO
      sReadIORef,
      sWriteIORef
      ) where
@@ -94,21 +94,21 @@ catch' m f = catch m (f . sanitizeExc)
 
 bracket' :: IO a -> (a -> IO b) -> (a -> IO c) -> IO c
 bracket' before after m = bracket before after m
-	      
+              
 sanitizeExc :: Exception e => e -> e
 sanitizeExc e = e
 
 instance RMonadIO m => RMonadIO (ReaderT r m) where
     brace before after during = ReaderT (\r ->
-	let rr m = runReaderT m r
-	in brace (rr before) (rr.after) (rr.during))
+        let rr m = runReaderT m r
+        in brace (rr before) (rr.after) (rr.during))
     snag m f = ReaderT(\r -> 
-		 runReaderT m r `snag` \e -> runReaderT (f e) r)
+                 runReaderT m r `snag` \e -> runReaderT (f e) r)
     lIO = lift . lIO
 
 instance RMonadIO m => RMonadIO (IORT s m) where
     brace before after during = IORT
-	(brace (unIORT before) (unIORT.after) (unIORT.during))
+        (brace (unIORT before) (unIORT.after) (unIORT.during))
     snag m f = IORT ( unIORT m `snag` (unIORT . f) )
     lIO = IORT . lIO
 
@@ -119,10 +119,10 @@ instance RMonadIO m => RMonadIO (IORT s m) where
 -- (See Fig 1 of their paper)
 newRgn :: (forall s. SubRegion r s -> SIO s v) -> SIO r v
 newRgn body = IORT (do
-		    env_outer <- ask
-		    -- Not just changing the label
-		    let witness (IORT m) = lIO (runReaderT m env_outer)
-		    lIO (runSIO (body (SubRegion witness))))
+                    env_outer <- ask
+                    -- Not just changing the label
+                    let witness (IORT m) = lIO (runReaderT m env_outer)
+                    lIO (runSIO (body (SubRegion witness))))
 
 
 -- In Fluet, Morrisett this function is called `runRgn'
@@ -132,15 +132,15 @@ runSIO :: (forall s. SIO s v) -> IO v
 runSIO m = brace (lIO (newIORef [])) after (runReaderT (unIORT m))
     where after handles = lIO (readIORef handles >>= mapM_ close)
           close h = do
-	     hPutStrLn stderr ("Closing " ++ show h)
-	     catch (hClose h) (\ (e :: SomeException) -> return ())
+             hPutStrLn stderr ("Closing " ++ show h)
+             catch (hClose h) (\ (e :: SomeException) -> return ())
 
 -- Our (safe) handle is labeled with the monad where it was created
 -- The monad is the SIO monad with the region label s (type
 -- eigenvariable). Eigenvariables are responsible for not letting the handles
 -- escape from their assigned region. 
 
-newtype SHandle (m :: * -> *) = SHandle Handle	-- data ctor not exported
+newtype SHandle (m :: * -> *) = SHandle Handle        -- data ctor not exported
 
 -- Create a new safe handle and assign it to the current region 
 -- We can apply the witness to the newSHandle operation to assign 
@@ -148,10 +148,10 @@ newtype SHandle (m :: * -> *) = SHandle Handle	-- data ctor not exported
 newSHandle :: FilePath -> IOMode -> SIO s (SHandle (SIO s))
 newSHandle fname fmode = IORT r'
  where r' = do
-	    h <- lIO $ openFile fname fmode -- may raise exc
-	    handles <- ask
-	    lIO $ modifyIORef handles (h:)
-	    return (SHandle h)
+            h <- lIO $ openFile fname fmode -- may raise exc
+            handles <- ask
+            lIO $ modifyIORef handles (h:)
+            return (SHandle h)
 
 -- Safe-handle-based IO...
 -- The safe handle must be assigned to the current region.
