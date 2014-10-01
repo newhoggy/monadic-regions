@@ -71,7 +71,7 @@ type SIO s = IORT s IO
 -- RMonadIO is an internal class, a version of MonadIO
 class Monad m => RMonadIO m where
     brace :: m a -> (a -> m b) -> (a -> m c) -> m c
-    snag  :: m a -> (SomeException -> m a) -> m a
+    snag  :: Exception e => m a -> (e -> m a) -> m a
     lIO   :: IO a -> m a
 
 instance RMonadIO IO where
@@ -84,14 +84,13 @@ instance RMonadIO IO where
 -- cannot escape in an IO exception. Whenever an IO exception is caught,
 -- we remove the handle from the exception before passing it to the
 -- exception handler.
-catch':: IO a -> (SomeException -> IO a) -> IO a
+catch':: Exception e => IO a -> (e -> IO a) -> IO a
 catch' m f = catch m (f . sanitizeExc)
 
 bracket' :: IO a -> (a -> IO b) -> (a -> IO c) -> IO c
-bracket' before after m = 
-    bracket before after m `catch` (throwIO . sanitizeExc)
+bracket' before after m =  bracket before after m
               
-sanitizeExc :: SomeException -> SomeException
+sanitizeExc :: Exception e => e -> e
 sanitizeExc e = e
 
 instance RMonadIO m => RMonadIO (ReaderT r m) where
@@ -155,10 +154,10 @@ shPutStrLn (SHandle h) = lIO . hPutStrLn h
 shIsEOF :: SHandle (SIO s) -> SIO s Bool
 shIsEOF (SHandle h) = lIO (hIsEOF h)
 
-shThrow :: SomeException -> SIO s a
+shThrow :: Exception e => e -> SIO s a
 shThrow = lIO . throwIO
 
-shCatch :: SIO s a -> (SomeException -> SIO s a) -> SIO s a
+shCatch :: Exception e => SIO s a -> (e -> SIO s a) -> SIO s a
 shCatch = snag
 
 shReport :: String -> SIO s ()

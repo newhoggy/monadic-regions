@@ -75,6 +75,7 @@ library
                     , Demo.SafeHandles1
                     , Demo.SafeHandlesFM
                     , Demo.CatBagMonad
+                    , Test.SafeHandles1Test
 
 test-suite properties
   type:               exitcode-stdio-1.0
