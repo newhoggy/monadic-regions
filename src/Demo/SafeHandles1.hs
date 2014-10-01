@@ -134,12 +134,11 @@ newtype SHandle (m :: * -> *) = SHandle Handle        -- data ctor not exported
 
 -- Create a new handle and assign it to the current region 
 newSHandle :: FilePath -> IOMode -> SIO s (SHandle (SIO s))
-newSHandle fname fmode = IORT r'
- where r' = do
-            h <- lIO $ openFile fname fmode -- may raise exc
-            handles <- ask
-            lIO $ modifyIORef handles (h:)
-            return (SHandle h)
+newSHandle fname fmode = IORT $ do
+    h <- lIO $ openFile fname fmode -- may raise exc
+    handles <- ask
+    lIO $ modifyIORef handles (h:)
+    return (SHandle h)
 
 
 -- Safe-handle-based IO...
