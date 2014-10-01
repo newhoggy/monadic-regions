@@ -111,11 +111,14 @@ instance RMonadIO m => RMonadIO (IORT s m) where
 -- closed when its region is finished (normally or abnormally).
 
 runSIO :: (forall s. SIO s v) -> IO v
-runSIO m = brace (lIO (newIORef [])) after (runReaderT (unIORT m))
-    where after handles = lIO (readIORef handles >>= mapM_ close)
-          close h = do
-             hPutStrLn stderr ("Closing " ++ show h)
-             catch (hClose h) (\ (e :: SomeException) -> return ())
+runSIO m = brace before after during
+    where
+        before = (lIO (newIORef []))
+        after handles = lIO (readIORef handles >>= mapM_ close)
+        during = runReaderT (unIORT m)
+        close h = do
+            hPutStrLn stderr ("Closing " ++ show h)
+            catch (hClose h) (\ (e :: SomeException) -> return ())
 
 -- Naive region: executing an SIO computation encapsulated within
 -- another SIO computation. No handles can be shared among computations,
