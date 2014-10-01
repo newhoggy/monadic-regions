@@ -118,11 +118,11 @@ instance RMonadIO m => RMonadIO (IORT s m) where
 -- In Fluet, Morrisett this function is called `letRgn'
 -- (See Fig 1 of their paper)
 newRgn :: (forall s. SubRegion r s -> SIO s v) -> SIO r v
-newRgn body = IORT (do
-                    env_outer <- ask
-                    -- Not just changing the label
-                    let witness (IORT m) = lIO (runReaderT m env_outer)
-                    lIO (runSIO (body (SubRegion witness))))
+newRgn body = IORT $ do
+    env_outer <- ask
+    -- Not just changing the label
+    let witness (IORT m) = lIO (runReaderT m env_outer)
+    lIO (runSIO (body (SubRegion witness)))
 
 
 -- In Fluet, Morrisett this function is called `runRgn'
@@ -146,12 +146,11 @@ newtype SHandle (m :: * -> *) = SHandle Handle        -- data ctor not exported
 -- We can apply the witness to the newSHandle operation to assign 
 -- the safe handle to any parent region.
 newSHandle :: FilePath -> IOMode -> SIO s (SHandle (SIO s))
-newSHandle fname fmode = IORT r'
- where r' = do
-            h <- lIO $ openFile fname fmode -- may raise exc
-            handles <- ask
-            lIO $ modifyIORef handles (h:)
-            return (SHandle h)
+newSHandle fname fmode = IORT $ do
+    h <- lIO $ openFile fname fmode -- may raise exc
+    handles <- ask
+    lIO $ modifyIORef handles (h:)
+    return (SHandle h)
 
 -- Safe-handle-based IO...
 -- The safe handle must be assigned to the current region.
