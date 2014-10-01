@@ -14,14 +14,14 @@ share handles. We improve them later.
 
 
 module Demo.SafeHandles1 
-    (IORT,			-- constructors not exported
+    (IORT,                        -- constructors not exported
      SIO,
      SHandle,
 
      runSIO,
      newNaiveReg,
      newSHandle,
-     IOMode(..),		-- re-exported from System.IO
+     IOMode(..),                -- re-exported from System.IO
 
      shGetLine,
      shPutStrLn,
@@ -90,21 +90,21 @@ catch' m f = catch m (f . sanitizeExc)
 bracket' :: IO a -> (a -> IO b) -> (a -> IO c) -> IO c
 bracket' before after m = 
     bracket before after m `catch` (throwIO . sanitizeExc)
-	      
+              
 sanitizeExc :: SomeException -> SomeException
 sanitizeExc e = e
 
 instance RMonadIO m => RMonadIO (ReaderT r m) where
     brace before after during = ReaderT (\r ->
-	let rr m = runReaderT m r
-	in brace (rr before) (rr.after) (rr.during))
+        let rr m = runReaderT m r
+        in brace (rr before) (rr.after) (rr.during))
     snag m f = ReaderT(\r -> 
-		 runReaderT m r `snag` \e -> runReaderT (f e) r)
+                 runReaderT m r `snag` \e -> runReaderT (f e) r)
     lIO = lift . lIO
 
 instance RMonadIO m => RMonadIO (IORT s m) where
     brace before after during = IORT
-	(brace (unIORT before) (unIORT.after) (unIORT.during))
+        (brace (unIORT before) (unIORT.after) (unIORT.during))
     snag m f = IORT ( unIORT m `snag` (unIORT . f) )
     lIO = IORT . lIO
 
@@ -115,8 +115,8 @@ runSIO :: (forall s. SIO s v) -> IO v
 runSIO m = brace (lIO (newIORef [])) after (runReaderT (unIORT m))
     where after handles = lIO (readIORef handles >>= mapM_ close)
           close h = do
-	     hPutStrLn stderr ("Closing " ++ show h)
-	     catch (hClose h) (\ (e :: SomeException) -> return ())
+             hPutStrLn stderr ("Closing " ++ show h)
+             catch (hClose h) (\ (e :: SomeException) -> return ())
 
 -- Naive region: executing an SIO computation encapsulated within
 -- another SIO computation. No handles can be shared among computations,
@@ -131,16 +131,16 @@ newNaiveReg m = lIO (runSIO m)
 -- eigenvariable). Eigenvariables are responsible for not letting the handles
 -- escape from their assigned region. 
 
-newtype SHandle (m :: * -> *) = SHandle Handle	-- data ctor not exported
+newtype SHandle (m :: * -> *) = SHandle Handle        -- data ctor not exported
 
 -- Create a new handle and assign it to the current region 
 newSHandle :: FilePath -> IOMode -> SIO s (SHandle (SIO s))
 newSHandle fname fmode = IORT r'
  where r' = do
-	    h <- lIO $ openFile fname fmode -- may raise exc
-	    handles <- ask
-	    lIO $ modifyIORef handles (h:)
-	    return (SHandle h)
+            h <- lIO $ openFile fname fmode -- may raise exc
+            handles <- ask
+            lIO $ modifyIORef handles (h:)
+            return (SHandle h)
 
 
 -- Safe-handle-based IO...
