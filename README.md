@@ -1,12 +1,12 @@
 <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js?lang=css&skin=sunburst"></script>
 
 monadic-regions
-===============
+---------------
 
 Implement Monadic Regions.
 
 Manual Resource Management (common errors)
-=================================
+---------------------------------
 * Accessing an already closed resource
 * Forgetting to deallocate a resource
 * Untimely deallocation of a resource
@@ -15,7 +15,7 @@ Manual Resource Management (common errors)
 pp 1 "Abstract"
 
 Manual Resource Management (in Haskell)
-=================================
+---------------------------------
 * Runtime cost: Runtime check on access
 * Garbage collection:
     - difficult to reason about timeliness
@@ -25,7 +25,7 @@ Manual Resource Management (in Haskell)
 pp 1 "Introduction"
 
 Finalizers (System.Mem.Weak)
-============================
+----------------------------
 mkWeak :: k -> v -> Maybe (IO ()) -> IO (Weak v)
 
 The storage manager attempts to run the finalizer(s) for an object soon
@@ -36,7 +36,7 @@ is made to run outstanding finalizers when the program exits. Therefore
 finalizers should not be relied on to clean up resources
 
 With Functions
-==============
+--------------
     withFile :: FilePath -> IOMode -> (Handle -> IO r) -> IO r
 
     unsafeWithFileCall =
@@ -45,7 +45,7 @@ With Functions
 pp 4 "2.2 Implementation"
 
 Objective (features)
-====================
+--------------------
 * Statically assured correctness
 * Region polymorphism and Implicit region subtyping (??? Where mentioned?)
 * No witness terms
@@ -53,7 +53,7 @@ Objective (features)
 pp 1 "Abstract"
 
 Objective (preserved)
-=====================
+---------------------
 * Higher Order Functions
 * Mutable State
 * Recursion
@@ -65,7 +65,7 @@ Objective (preserved)
 pp 1 "Abstract"
 
 Solutions
-=========
+---------
 * Concept: Let Regions
 * Implementations:
     - Safe IO in a Single region
@@ -78,7 +78,7 @@ Solutions
 pp 1-2 "Introduction"
 
 Let Region
-==========
+----------
 * Nested region box diagram
 * Challenges:
     - Statically scope resource lifetimes to a region
@@ -88,7 +88,7 @@ Let Region
     - Allow dynamic resource lifetimes
 
 Motivating example
-==================
+------------------
 1. Open two files for reading, one of them a configuration file
 2. Read the name of an output file from the configuration file
 3. Open the output file and zipe the contents of both input files
@@ -99,14 +99,14 @@ Motivating example
 pp 2 "1.1 Motivating example"
 
 Inspiration - ST Monad (State-Thread)
-=====================================
+-------------------------------------
 * Allows use of mutable state in a referentially transparent function
 * Prevents leaking of immutable state using the type system
 
 pp 2 "Our contributions"
 
 ST Monad Example
-================
+----------------
     sumST :: Num a => [a] -> a
     sumST xs = runST $ do           -- [1]
         n <- newSTRef 0             -- [2]
@@ -115,7 +115,7 @@ ST Monad Example
         readSTRef n                 -- [5]
 
 ST Monad Example
-================
+----------------
 1. `runST` takes out stateful code and makes it pure again.
 2. Create an `STRef` (place in memory to store values)
 3. For each element of `xs` ..
@@ -123,7 +123,7 @@ ST Monad Example
 5. Read the value of `n`, and return it.
 
 ST Monad Invalid Example
-========================
+------------------------
     invalidST xs = runST $ do
         n <- newSTRef 0
         forM_ xs $ \x -> do
@@ -131,7 +131,7 @@ ST Monad Invalid Example
         return n -- ERROR!
 
 ST Monad Invalid Example
-========================
+------------------------
     Couldn't match expected type ‘a’ with actual type ‘STRef s a1’
       because type variable ‘s’ would escape its scope
     This (rigid, skolem) type variable is bound by
@@ -145,24 +145,24 @@ ST Monad Invalid Example
     In a stmt of a 'do' block: return n
 
 ST Monad - How does it work?
-============================
+----------------------------
 * Phantom types
 * Rank-2 Polymorphism
 
 Phantom Types
-=============
+-------------
 * `data Foo a v = Foo v`
 * `a` is the phantom type because it doesn't appear in the
   type constructor
 * Allows to encode compile time type information.
 
 Rank-1 polymorphism
-===================
+-------------------
 * `map :: forall a b. (a -> b) -> [a] -> [b]`
 * Introduces the type variables `a` and `b` an into scope
 
 Rank-2 polymorphism
-===================
+-------------------
 * `foo :: (forall s. Foo s v) -> String v`
 * `foo :: forall v. (forall s. Foo s v) -> String v`
 * Introduces the type variable `v` into scope
@@ -170,7 +170,7 @@ Rank-2 polymorphism
 * `s` cannot escape
 
 ST Monad type interface
-=======================
+-----------------------
     data ST s a
     data STRef s a
     runST :: (forall s. ST s a) -> a
@@ -178,12 +178,12 @@ ST Monad type interface
     modifySTRef :: STRef s a -> (a -> a) -> ST s ()
 
 ST Monad explanation
-====================
+--------------------
 * Expressions containin `s` cannot escape the computation
 * Values of type `STRef s a` persist until the end of computaton
 
 Single Region Safe File IO (interface)
-======================================
+--------------------------------------
     type SIO s = ...
     newtype SHandle (m :: * -> *) = ...
     runSIO :: (forall s. SIO s v) -> IO v
@@ -198,7 +198,7 @@ Single Region Safe File IO (interface)
 pp 3 "2.1 Interface"
 
 Single Region Safe File IO (Comparison to Haskell IO)
-=====================================================
+-----------------------------------------------------
     openFile :: FilePath -> IOMode -> IO Handle
     hGetLine :: Handle -> IO String
     hPutStrLn :: Handle -> String -> IO ()
@@ -207,7 +207,7 @@ Single Region Safe File IO (Comparison to Haskell IO)
     catch :: Exception e => IO a -> (e -> IO a) -> IO a
 
 Single Region Safe File IO (motivating example 1)
-=================================================
+-------------------------------------------------
     till condition iteration = loop where
       loop = do
         b <- condition
@@ -224,7 +224,7 @@ Single Region Safe File IO (motivating example 1)
 pp 3 "2.1 Interface"
 
 Single Region Safe File IO (motivating example 2)
-=================================================
+-------------------------------------------------
     -- The following shows that we do not have to put all IO code in
     -- one big function. We can spread it out.
     test3_internal :: SHandle (SIO s) -> IORT s IO (SHandle (SIO s))
@@ -244,7 +244,7 @@ Single Region Safe File IO (motivating example 2)
 pp 3 "2.1 Interface"
 
 Single Region Safe File IO (output)
-===================================
+-----------------------------------
     Finished zipping h1 and h2
     test 3 done
     Closing {handle: /tmp/t1}
@@ -254,7 +254,7 @@ Single Region Safe File IO (output)
 pp 3 "2.1 Interface"
 
 Single Region Safe File IO (implementation)
-===========================================
+-------------------------------------------
     newtype IORT s m v =
         IORT{ unIORT:: ReaderT (IORef [Handle]) m v } 
         deriving (Applicative, Monad, Functor)
@@ -264,7 +264,7 @@ Single Region Safe File IO (implementation)
 pp 3 "2.2 Implementation"
 
 Single Region Safe File IO (implementation)
-===========================================
+-------------------------------------------
 * Relies on Standard Haskell IO
 * Maintain list of created handles to close and end of computation.
 * Internal handle type still Handle
@@ -272,7 +272,7 @@ Single Region Safe File IO (implementation)
 pp 3 "2.2 Implementation"
 
 Single Region Safe File IO (implementation)
-===========================================
+-------------------------------------------
     -- RMonadIO is an internal class, a version of MonadIO
     class Monad m => RMonadIO m where
         brace :: m a -> (a -> m b) -> (a -> m c) -> m c
@@ -287,12 +287,12 @@ Single Region Safe File IO (implementation)
 pp 4 "2.2 Implementation"
 
 Single Region Safe File IO (implementation, Compare Haskell IO)
-===============================================================
+---------------------------------------------------------------
     class Monad m => MonadIO m where
         liftIO :: IO a -> m a
 
 Single Region Safe File IO (implementation)
-===========================================
+-------------------------------------------
     instance RMonadIO m => RMonadIO (ReaderT r m) where
         brace before after during = ReaderT (\r ->
             let rr m = runReaderT m r
@@ -304,7 +304,7 @@ Single Region Safe File IO (implementation)
 pp 4 "2.2 Implementation"
 
 Single Region Safe File IO (implementation)
-===========================================
+-------------------------------------------
     instance RMonadIO m => RMonadIO (IORT s m) where
         brace before after during = IORT
             (brace (unIORT before) (unIORT.after) (unIORT.during))
@@ -314,7 +314,7 @@ Single Region Safe File IO (implementation)
 pp 4 "2.2 Implementation"
 
 Single Region Safe File IO (assessment)
-=======================================
+---------------------------------------
 * Safe handle access.
 * Zero-cost handle access.
 * Deallocation statically assured.
@@ -324,14 +324,14 @@ Single Region Safe File IO (assessment)
 pp 4 "2.2 Implementation"
 
 Multi-region no sharing
-=======================
+-----------------------
     newNaiveReg :: (forall s. SIO s v) -> SIO s' v
     newNaiveReg m = lIO (runSIO m)
 
 pp 5 "3.1 Implementation"
 
 Multi-region no sharing (example)
-=================================
+---------------------------------
     test2' = runSIO $ do
       h1 <- newSHandle "fname1" ReadMode
       l1 <- shGetLine h1
@@ -353,7 +353,7 @@ Multi-region no sharing (example)
 pp 5 "3.1 Implementation"
 
 Multi-region no sharing (motivating example)
-============================================
+--------------------------------------------
 ✓ Want config file opened in child 
 ✓ Input file opened in parent region
 ✗ Input file accessed in child region
@@ -363,7 +363,7 @@ Multi-region no sharing (motivating example)
 pp 5 "3.1 Implementation"
 
 Multi-region, Launchbury and Sabry
-==================================
+----------------------------------
     newLSRgn :: (forall s. SIO (r, s) v) -> SIO r v
 
     importSHandle :: SHandle (SIO r) -> SHandle (SIO (r, s))
@@ -373,7 +373,7 @@ Can only use parent handles from child, not the reverse.
 pp 5 "3.2 Using a parent region from a child computation"
 
 Multi-region, Fluett and Morriset
-=================================
+---------------------------------
     -- A witness that the region labeled r is older than
     -- (or, is the the parent of, the subtype of) the region labeled s
     newtype SubRegion r s = SubRegion (forall v. SIO r v -> SIO s v)
@@ -385,7 +385,7 @@ Multi-region, Fluett and Morriset
 pp 5 "3.2 Using a parent region from a child computation"
 
 Multi-region, Fluett and Morriset (motivating example)
-======================================================
+------------------------------------------------------
     test3 = runSIO $ do
         h1 <- newSHandle "/tmp/SafeHandles.hs" ReadMode
         h3 <- newRgn (test3_internal h1)
@@ -397,7 +397,7 @@ Multi-region, Fluett and Morriset (motivating example)
 pp 5 "3.2 Using a parent region from a child computation"
 
 Multi-region, Fluett and Morriset (motivating example)
-======================================================
+------------------------------------------------------
     test3_internal :: SHandle (SIO t) -> SubRegion t s
                         -> IORT s IO (SHandle (SIO t)) -- Region polymorphic
     test3_internal h1 (SubRegion liftSIO) = do
@@ -416,7 +416,7 @@ Multi-region, Fluett and Morriset (motivating example)
 pp 6 "3.2 Using a parent region from a child computation"
 
 Multi-region, Fluett and Morriset (Output)
-==============================================
+----------------------------------------------
     Finished zipping h1 and h2
     Closing {handle: /tmp/ex-file.conf}
     test3 done
@@ -426,7 +426,7 @@ Multi-region, Fluett and Morriset (Output)
 pp 6 "3.2 Using a parent region from a child computation"
 
 Multi-region, Fluett and Morriset (implementation)
-==================================================
+--------------------------------------------------
     newRgn :: (forall s. SubRegion r s -> SIO s v) -> SIO r v
     newRgn body = IORT $ do
         env_outer <- ask
@@ -437,7 +437,7 @@ Multi-region, Fluett and Morriset (implementation)
 pp 6 "3.3 Implementation"
 
 Multi-region, Fluett and Morriset (Exception handling)
-==================================================
+--------------------------------------------------
 test_copy fname_in fname_out = do
     hout <- newSHandle fname_out WriteMode
     (do newRgn (\ (SubRegion liftSIO) -> do
@@ -452,7 +452,7 @@ test_copy fname_in fname_out = do
 pp 6 "3.3 Assessment"
 
 Multi-region, Fluett and Morriset (Exception handling output)
-=============================================================
+-------------------------------------------------------------
     > runSIO (test_copy "/etc/motd" "/tmp/t1")
     Closing {handle: /etc/motd}
     Finished copying
@@ -467,7 +467,7 @@ Multi-region, Fluett and Morriset (Exception handling output)
 pp 6 "3.3 Assessment"
 
 Multi-region, Fluett and Morriset (Multiple handles)
-====================================================
+----------------------------------------------------
     test4 h1 h2 = do  line <- shGetLine h1
                       shPutStrLn h2 line
 
@@ -481,7 +481,7 @@ Must be written like this:
 pp 6 "3.3 Assesment"
 
 Multi-region, Fluett and Morriset (assessment)
-==============================================
+----------------------------------------------
 * Provides parent-child/child-parent sharing
 * Full region polymorphism 
 * Requires many `liftSIO` coercions
@@ -490,7 +490,7 @@ Multi-region, Fluett and Morriset (assessment)
 pp 6 "3.3 Assesment"
 
 Lightweight Monadic Regions
-===========================
+---------------------------
 * Each subregion is an application of a monad transformer
   of the form `IORT s`
 * Each application has its own label `s`
@@ -501,7 +501,7 @@ Lightweight Monadic Regions
 pp 7 "4.1 Interface"
 
 Lightweight Monadic Regions (interface)
-=======================================
+---------------------------------------
     newtype IORT s m v
     type SIO s
     type SHandle m
@@ -512,7 +512,7 @@ Lightweight Monadic Regions (interface)
 pp 7 "4.1 Interface"
 
 Lightweight Monadic Regions (interface)
-=======================================
+---------------------------------------
     newSHandle :: (m ~ (IORT s' m'), SMonad1IO m) => 
                     FilePath -> IOMode -> m (SHandle m)
     shGetLine :: (MonadRaise m1 m2, SMonadIO m2) =>
@@ -525,7 +525,7 @@ Lightweight Monadic Regions (interface)
 pp 7 "4.1 Interface"
 
 Lightweight Monadic Regions (interface)
-=======================================
+---------------------------------------
     shThrow :: Exception e => SMonadIO m => e -> m a
     shCatch :: Exception e => SMonadIO m => m a -> (e -> m a) -> m a
     shReport :: SMonadIO m => String -> m ()
@@ -536,7 +536,7 @@ Lightweight Monadic Regions (interface)
 pp 7 "4.1 Interface"
 
 Lightweight Monadic Regions (motivating example)
-================================================
+------------------------------------------------
     test3 = runSIO $ do
       h1 <- newSHandle "/tmp/SafeHandles.hs" ReadMode
       h3 <- newRgn (test3_internal h1)
@@ -548,14 +548,14 @@ Lightweight Monadic Regions (motivating example)
 pp 7-8 "4.1 Interface"
 
 Lightweight Monadic Regions (motivating example)
-================================================
+------------------------------------------------
     test3_internal ::
         (RMonadIO m, MonadRaise m1 (IORT S (IORT r m))) =>
         SHandle m1 -> IORT s (IORT r m) (SHandle (IORT r m))
 
 
 Lightweight Monadic Regions (motivating example)
-================================================
+------------------------------------------------
     test3_internal h1 = do
       h2 <- newSHandle "/tmp/ex-file.conf" ReadMode
       fname <- shGetLine h2  -- read the fname from the config file
@@ -571,7 +571,7 @@ Lightweight Monadic Regions (motivating example)
 pp 7-8 "4.1 Interface"
 
 Lightweight Monadic Regions (comparison)
-========================================
+----------------------------------------
 * No witness argument
 * Repeated application of `liftSIO` is used to access any
   given ancestor region.
@@ -579,7 +579,7 @@ Lightweight Monadic Regions (comparison)
 pp 7-8 "4.1 Interface"
 
 Lightweight Monadic Regions (implementation)
-============================================
+--------------------------------------------
     instance Monad m => MonadRaise m m
     instance Monad m => MonadRaise m (IORT s1 m)
     instance Monad m => MonadRaise m (IORT s2 (IORT s1 m))
@@ -589,7 +589,7 @@ Lightweight Monadic Regions (implementation)
 pp 9 "4.2 Implementation"
 
 Lightweight Monadic Regions (implementation)
-============================================
+--------------------------------------------
     instance (Monad m2, m2 ~ (IORT s m2'), MonadRaise m1 m2')
                 => MonadRaise m1 m2 where
     lifts = IORT . lift . lifts
@@ -597,13 +597,13 @@ Lightweight Monadic Regions (implementation)
 Source code
 
 Lightweight Monadic Regions (safety guarantees)
-===============================================
+-----------------------------------------------
 .....
 
 pp 8 "4.3 Is handle safety truly guaranteed?""
 
 Lightweight Monadic Regions (prolonging handle life)
-====================================================
+----------------------------------------------------
     shDup :: (m ~ (IORT s' m'), SMonad1IO m) => 
                     SHandle (IORT s1 m) -> IORT s1 m (SHandle m)
     shDup (SHandle h) = IORT (do
