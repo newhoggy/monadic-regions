@@ -427,6 +427,58 @@ pp 6 "3.2 Using a parent region from a child computation"
 
 Multi-region, Fluett and Morriset (implementation)
 ==================================================
+    newRgn :: (forall s. SubRegion r s -> SIO s v) -> SIO r v
+    newRgn body = IORT $ do
+        env_outer <- ask
+        -- Not just changing the label
+        let witness (IORT m) = lIO (runReaderT m env_outer)
+        lIO (runSIO (body (SubRegion witness)))
+
+pp 6 "3.3 Implementation"
+
+Multi-region, Fluett and Morriset (Exception handling)
+==================================================
+test_copy fname_in fname_out = do
+    hout <- newSHandle fname_out WriteMode
+    (do newRgn (\ (SubRegion liftSIO) -> do
+          hin <- newSHandle fname_in ReadMode
+          till (shIsEOF hin)
+               (shGetLine hin >>= liftSIO . shPutStrLn hout))
+        shReport "Finished copying")
+     `shCatch` \ (e :: SomeException) -> do
+       shReport ("Exception caught: " ++ show e)
+       shPutStrLn hout ("Copying failed: " ++ show e)
+
+pp 6 "3.3 Assessment"
+
+Multi-region, Fluett and Morriset (Exception handling output)
+=============================================================
+    > runSIO (test_copy "/etc/motd" "/tmp/t1")
+    Closing {handle: /etc/motd}
+    Finished copying
+    Closing {handle: /tmp/t1}
+
+    > runSIO (test_copy "/non-existent" "/tmp/t1")
+    Exception caught: /nont-existent: openFile:
+        does not exit (No such file or directory)
+    Finished copying
+    Closing {handle: /tmp/t1}
+
+pp 6 "3.3 Assessment"
+
+Multi-region, Fluett and Morriset (Multiple handles)
+====================================================
+    test4 h1 h2 = do  line <- shGetLine h1
+                      shPutStrLn h2 line
+
+Must be written like this:
+
+    test4 h1 h2 (SubRegion liftSIO1)
+                (SubRegion liftSIO2) = do
+        line <- liftSIO1 $ hGetLine h1
+        liftSIO2 $ shPutStrLn h2 line
+
+pp 6 "3.3 Assesment"
 
 Multi-region, Fluett and Morriset (assessment)
 ==============================================
@@ -435,8 +487,134 @@ Multi-region, Fluett and Morriset (assessment)
 * Requires many `liftSIO` coercions
 * Requires extra `SubRegion` argument as witness
 
+pp 6 "3.3 Assesment"
+
+Lightweight Monadic Regions
+===========================
+* Each subregion is an application of a monad transformer
+  of the form `IORT s`
+* Each application has its own label `s`
+* New `RMonadIO` type class to act as a "kind predicate" to
+  determine when access is safe.
+* New `MonadRaise` type class to maintain subtyping constraint.
+
+pp 7 "4.1 Interface"
+
+Lightweight Monadic Regions (interface)
+=======================================
+    newtype IORT s m v
+    type SIO s
+    type SHandle m
+    runSIO :: (forall s. SIO s v) -> IO v
+    newRgn :: RMonadIO m => (forall s. IORT s m v) -> m v
+    liftSIO :: Monad m => IORT s m a -> IORT s1 (IORT s m) a
+
+pp 7 "4.1 Interface"
+
+Lightweight Monadic Regions (interface)
+=======================================
+    newSHandle :: (m ~ (IORT s' m'), SMonad1IO m) => 
+                    FilePath -> IOMode -> m (SHandle m)
+    shGetLine :: (MonadRaise m1 m2, SMonadIO m2) =>
+                    SHandle m1 -> m2 String
+    shPutStrLn :: (MonadRaise m1 m2, SMonadIO m2) =>
+                    SHandle m1 -> String -> m2 ()
+    shIsEOF :: (MonadRaise m1 m2, SMonadIO m2) =>
+                    SHandle m1 -> m2 Bool
+
+pp 7 "4.1 Interface"
+
+Lightweight Monadic Regions (interface)
+=======================================
+    shThrow :: Exception e => SMonadIO m => e -> m a
+    shCatch :: Exception e => SMonadIO m => m a -> (e -> m a) -> m a
+    shReport :: SMonadIO m => String -> m ()
+    sNewIORef :: SMonadIO m => a -> m (IORef a)
+    sReadIORef :: SMonadIO m => IORef a -> m a
+    sWriteIORef :: SMonadIO m => IORef a -> a -> m ()
+
+pp 7 "4.1 Interface"
+
+Lightweight Monadic Regions (motivating example)
+================================================
+    test3 = runSIO $ do
+      h1 <- newSHandle "/tmp/SafeHandles.hs" ReadMode
+      h3 <- newRgn (test3_internal h1)
+      -- once we closed h2, we write the rest of h1 into h3
+      till (shIsEOF h1)
+           (shGetLine h1 >>= shPutStrLn h3)
+      shReport "test3 done"
+
+pp 7-8 "4.1 Interface"
+
+Lightweight Monadic Regions (motivating example)
+================================================
+    test3_internal ::
+        (RMonadIO m, MonadRaise m1 (IORT S (IORT r m))) =>
+        SHandle m1 -> IORT s (IORT r m) (SHandle (IORT r m))
 
 
+Lightweight Monadic Regions (motivating example)
+================================================
+    test3_internal h1 = do
+      h2 <- newSHandle "/tmp/ex-file.conf" ReadMode
+      fname <- shGetLine h2  -- read the fname from the config file
+      h3 <- liftSIO (newSHandle fname WriteMode) -- allocate in parent
+      shPutStrLn h3 fname
+      till (liftM2 (||) (shIsEOF h2) (shIsEOF h1)) -- zip h2 and h1 into h3
+           (shGetLine h2 >>= shPutStrLn h3 >>
+            shGetLine h1 >>= shPutStrLn h3)
+      shReport "Finished zipping h1 and h2"
+      return h3 -- but this is OK: h3 assigned to a parent region
+      -- return h2 -- that would be an error: h2 can't escape
 
+pp 7-8 "4.1 Interface"
+
+Lightweight Monadic Regions (comparison)
+========================================
+* No witness argument
+* Repeated application of `liftSIO` is used to access any
+  given ancestor region.
+
+pp 7-8 "4.1 Interface"
+
+Lightweight Monadic Regions (implementation)
+============================================
+    instance Monad m => MonadRaise m m
+    instance Monad m => MonadRaise m (IORT s1 m)
+    instance Monad m => MonadRaise m (IORT s2 (IORT s1 m))
+    instance Monad m => MonadRaise m (IORT s3 (IORT s2 (IORT s1 m)))
+    ....
+
+pp 9 "4.2 Implementation"
+
+Lightweight Monadic Regions (implementation)
+============================================
+    instance (Monad m2, m2 ~ (IORT s m2'), MonadRaise m1 m2')
+                => MonadRaise m1 m2 where
+    lifts = IORT . lift . lifts
+
+Source code
+
+Lightweight Monadic Regions (safety guarantees)
+===============================================
+.....
+
+pp 8 "4.3 Is handle safety truly guaranteed?""
+
+Lightweight Monadic Regions (prolonging handle life)
+====================================================
+    shDup :: (m ~ (IORT s' m'), SMonad1IO m) => 
+                    SHandle (IORT s1 m) -> IORT s1 m (SHandle m)
+    shDup (SHandle h) = IORT (do
+       handles <- ask >>= lIO . readIORef
+       let Just hr@(HandleR _ refcount) = find (eq_hr h) handles
+       lIO $ modifyIORef refcount succ
+       lift $ IORT (do      -- in the parent monad
+              handles <- ask
+              lIO $ modifyIORef handles (hr:))
+       return (SHandle h))
+
+pp 7 "4.1 Interface", pp9 "5 Extension: prolonging ...", Code
 
 
