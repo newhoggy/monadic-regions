@@ -75,6 +75,7 @@ library
                     , Demo.SafeHandles1
                     , Demo.SafeHandlesFM
                     , Demo.CatBagMonad
+                    , Test.SafeHandlesTest
                     , Test.SafeHandles1Test
                     , Test.SafeHandlesFMTest
 
