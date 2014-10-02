@@ -1,3 +1,5 @@
+<script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js?lang=css&skin=sunburst"></script>
+
 monadic-regions
 ===============
 
@@ -415,14 +417,23 @@ pp 6 "3.2 Using a parent region from a child computation"
 
 Multi-region, Fluett and Morriset (Output)
 ==============================================
+    Finished zipping h1 and h2
+    Closing {handle: /tmp/ex-file.conf}
+    test3 done
+    Closing {handle: /tmp/t1}
+    Closing {handle: /tmp/SafeHandles.hs}
 
-pp 5 "3.2 Using a parent region from a child computation"
+pp 6 "3.2 Using a parent region from a child computation"
+
+Multi-region, Fluett and Morriset (implementation)
+==================================================
 
 Multi-region, Fluett and Morriset (assessment)
 ==============================================
-* Provides xxx
-* Requires many `liftSIO` applications
-* Requires extra `SubRegion` argument
+* Provides parent-child/child-parent sharing
+* Full region polymorphism 
+* Requires many `liftSIO` coercions
+* Requires extra `SubRegion` argument as witness
 
 
 
